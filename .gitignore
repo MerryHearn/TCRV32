@@ -1,0 +1,19 @@
+# 发行包忽略规则（release/ 目录专用）
+#
+# 这里只放三样东西：README.md、save/（游戏存档，手动放入）、toolchain/（工具链副本）。
+# 下面忽略的是"用过之后会冒出来的东西"，不忽略存档本身。
+
+# Python 运行工具链时产生的缓存
+__pycache__/
+*.pyc
+
+# 在 release/ 里随手试编出来的镜像（.bin/.elf）不进仓库
+*.bin
+*.elf
+*.o
+
+# 编辑器 / 系统垃圾
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
