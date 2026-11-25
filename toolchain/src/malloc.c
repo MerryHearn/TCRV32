@@ -1,8 +1,6 @@
-/* malloc.c —— TCRV32 的 bump allocator（够用、可预测、无碎片）
- *
- * 堆区间：[_end, _stack_top - 1 MiB)  ← 给栈留 1 MiB（DMEM 扩到 256 MiB 后放宽）
- * free() 是空操作；realloc 只在"最后一块"原地扩展，否则重新分配 + 拷贝。
- * 没有 brk 系统调用，全部在用户态完成。
+/* malloc.c — bump 分配器：区间 [_end, _stack_top - HEAP_RESERVE)，16 字节对齐；
+ * free 不回收，realloc 仅最后一块可原地扩展，否则重新分配并拷贝。
+ * HEAP_RESERVE 由内存地图决定（1g 1 MiB / 16m 8 KiB）。
  */
 #include <stdint.h>
 #include <stddef.h>

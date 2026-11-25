@@ -1,10 +1,5 @@
-/* TCRV32 v0.1 启动代码（crt0）
- *
- * 职责：gp → sp → .bss 清零 → .data 从 IMEM 搬到 DMEM → main → exit
- * 与 toolchain/link.ld 的符号约定严格对应，改一处必须同时改另一处。
- *
- * 注意：`la` 在 -mno-relax / -Wl,--no-relax 下会展开为 auipc+addi（PC 相对），
- *      这在 IMEM(0x0) 与 DMEM(0x200000) 分离的地图里仍然正确，因为链接器已算好偏移。
+/* crt0.S — 启动代码：gp → sp → .bss 清零 → .data 从 IMEM 搬到 DMEM → main → exit
+ * 符号与 link.ld 严格对应，改一处必须同时改另一处。
  */
     .section .text.start, "ax", @progbits
     .globl _start

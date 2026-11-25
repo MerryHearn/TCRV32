@@ -1,7 +1,5 @@
-/* tcrv32.c —— tcrv32.h 的实现（屏幕控制 / 文本控制台 / 简易 printf / 字符串）
- *
- * 依赖 support.c 里的：putch / putstr / putdec / puthex / memcpy / memset
- * 编译：与 support.c、crt0.S 一起链（见 tools/build_m2.py）
+/* tcrv32.c — 屏幕 / 文本控制台 / 简易 printf / 字符串的实现
+ * 依赖 support.c 的 putch / putstr / putdec / puthex / memcpy / memset。
  */
 #include "tcrv32.h"
 #include <stdarg.h>
@@ -9,7 +7,7 @@
 /* ============================ 屏幕设置 ============================ */
 
 void scr_set(int opt, uint32_t val) {
-    /* 两步：先写"选项号寄存器"，再写"值"（写值那一拍触发屏幕的"写入设置"） */
+/* 先写选项号，再写值（写值那一拍生效） */
     *(volatile uint32_t *)TCRV32_SCR_OPT = (uint32_t)opt;
     *(volatile uint32_t *)TCRV32_SCR_VAL = val;
 }
@@ -17,7 +15,7 @@ void scr_set(int opt, uint32_t val) {
 void scr_set2(int id, int opt, uint32_t val) {
     if (id < 0 || id >= TCRV32_SCR_N) return;
     *(volatile uint32_t *)TCRV32_SCR_OPT_OF(id) = (uint32_t)opt;
-    *(volatile uint32_t *)TCRV32_SCR_VAL_OF(id) = val;   /* 写值即触发"写入设置" */
+    *(volatile uint32_t *)TCRV32_SCR_VAL_OF(id) = val;   /* 写值即生效 */
 }
 
 void scr_set_offset(uint32_t off) { scr_set(SCR_OPT_OFFSET, off); }
@@ -38,14 +36,14 @@ void scr_init2(int id, uint32_t vram_off, int mode) {
     scr_set_mode2(id, mode);
 }
 
-/* 像素模式常用：偏移 → 分辨率 → 模式（顺序无关，但都要做） */
+/* 像素模式初始化：偏移、分辨率、模式（顺序无关） */
 void scr_init_pixel(int id, uint32_t fb_off, int setting) {
     scr_set_offset2(id, fb_off);
     scr_set_res2(id, setting);
     scr_set_mode2(id, SCR_PIXEL8);
 }
 
-/* ==================== 图形（M3 骨架） ==================== */
+/* ==================== 图形 ==================== */
 
 uint32_t gfx_base   = TCRV32_FB0;
 uint32_t gfx_w      = SCR_COLS;     /* 默认按 ASCII8 的 96×40 */
@@ -133,13 +131,8 @@ void gfx_circle(int cx, int cy, int r, uint32_t color) {
 }
 
 /* ============================ 键盘 ============================ */
-/* 取事件的规范（2026-11 定，来自真机实测）：
- *   ① **一次只读一条**：读 `EVENT`（+0x08）就是消费，绝不"多读几条看看/筛选"；
- *   ② **用 `非空`（`STAT`）做门控**：它只要队列里有未读事件就常亮（电平），
- *      所以 STAT 为 0 时连读都不读，为 1 时读一次即可；
- *   ③ **两次读取之间不能长时间空闲**：真机上"读一次然后停很久"会让事件越积越多、
- *      表现为随机丢/延迟。调用方要把取键摊进整个循环（`snake.c` 把它插进绘制的每一小段），
- *      而不是一帧只在开头取一次。
+/* 取事件：STAT 为 1 时读一次 EVENT（读即消费）；调用方要把取键摊进主循环，
+ * 不要一帧只取一次——真机上长时间不读会让队列堆积、表现为丢键。
  */
 
 int kbd_waiting(void) {

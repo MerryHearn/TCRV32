@@ -1,22 +1,11 @@
 ﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""memmap.py —— 两套内存地图的唯一真源（16 MiB 与 1 GiB）
+"""memmap.py — 两套内存地图的唯一真源
 
-为什么要有这个文件：
-    本项目同时维护"小内存"与"大内存"两套地图。地址、容量、栈顶这些东西
-    分散在头文件、链接脚本、装载器、模拟器四处，任何一处不同步都会变成
-    "链接通过、运行即死"的隐性错误。所以把它们集中到这一处，
-    其余三处都从这里取数。
+16m：IMEM 1 MiB / DMEM 2 MiB / 文本 1 MiB / 像素 4 MiB / 资源 4 MiB，栈顶 0x00400000
+1g ：IMEM 16 MiB / DMEM 256 MiB / 文本 16 MiB / 像素 64 MiB / 资源 64 MiB，栈顶 0x11000000
 
-两套地图的差别只有下面这些数字，结构完全一样：
-    16m   IMEM 1 MiB / DMEM 2 MiB / 文本 1 MiB / 像素 4 MiB / 资源 4 MiB，栈顶 0x00400000
-    1g    IMEM 16 MiB / DMEM 256 MiB / 文本 16 MiB / 像素 64 MiB / 资源 64 MiB / 空闲 608 MiB，
-          栈顶 0x11000000
-
-用法：
-    from memmap import get
-    m = get("16m")          # 或 "1g"
-    m.mem_size, m.regions, m.stack_top, m.cc_define
+用法：from memmap import get; m = get("1g"); m.mem_size / m.regions / m.stack_top
 """
 
 PROFILES = {

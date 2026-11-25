@@ -8,11 +8,11 @@
     python build.py <源文件> [更多源文件...] -o <输出.bin> [选项]
 
 例子
-    python build.py ../examples/hello.c -o ../build/hello.bin
-    python build.py ../examples/hanoi.c -o ../build/hanoi.bin
-    python build.py a.c b.c -o out.bin --elf out.elf --keep
-    python build.py ../examples/hello.c -o ../build/hello.bin --map 16m
-    python build.py my_gpu.c -o ../build/my_gpu.bin --gpu          # 只有 1 GiB 配置有 GPU
+    python build.py hello.c -o hello_1g.bin
+    python build.py snake.c -o snake_1g.bin
+    python build.py a.c b.c -o out.bin --elf out.elf
+    python build.py hello.c -o hello_1g.bin --map 16m
+    python build.py my_gpu.c -o my_gpu_1g.bin --gpu      # GPU 只在 1 GiB 配置
 
 选项
     -o PATH     输出的 .bin 路径（必需）
@@ -24,7 +24,7 @@
     -v          打印详细过程
 
 依赖
-    Python 3.9 以上；`pip install ziglang==0.17.1`（Zig 编译器以 Python 包形式提供）
+    Python 3.9 以上；pip install ziglang==0.17.1（Zig 编译器以 Python 包形式提供）
 """
 
 import argparse
@@ -59,7 +59,7 @@ PLATFORM = [os.path.join(SRC, f) for f in
             ("tcrv32.c", "support.c", "softfloat.c", "malloc.c")]
 
 # GPU 驱动（只有 GPU 程序需要）。
-# 不放进 PLATFORM：放进去会让**所有**镜像都变大，破坏"镜像与验收记录一致"。
+# 不放进 PLATFORM：放进去会让所有镜像都变大，破坏"镜像与验收记录一致"。
 # 另外 GPU 是 1 GiB 配置的硬件变体（TCRV32-withGPU），16m 配置里没有这个设备。
 GPU_SRC = os.path.join(SRC, "gpu.c")
 

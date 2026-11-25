@@ -1,17 +1,14 @@
-/* gpu.c —— GPU（内存→内存二维引擎）的唯一驱动
+/* gpu.c — GPU（内存→内存二维引擎）驱动
  *
- * 纪律（见 works/总结参考/22-键盘与GPU方案.md §4.5/§4.6）：
- *   ① **参数寄存器只有一套**：提交下一条命令前必须先 `gpu_wait()`；
- *   ② `CMD` 是**写触发**：写 op 的那一拍锁存参数并启动，所以参数要先写；
- *   ③ 写的是字节，`LEN` 不要求 8 的倍数（硬件末组自动裁）；
- *   ④ `STRIDE` 是**行间距（字节）**，一维操作时 `ROWS=1`。
+ * 参数寄存器只有一套：提交下一条命令前必须先 gpu_wait()。
+ * CMD 是写触发，参数要先写；按字节写，LEN 不要求 8 的倍数；
+ * STRIDE 是行间距（字节），一维操作时 ROWS=1。
  */
 #include "tcrv32.h"
 
 #define GPU_REG(a) (*(volatile uint32_t *)(a))
 
-/* ROWS 的影子寄存器：`gpu_fill_rect` 会把它改成行数，而 `gpu_fill_span` 要求它是 1。
- * 没有影子的话，先清屏再逐行填就会**按行数过绘**（实测慢了 9 倍）。 */
+/* ROWS 影子寄存器：fill_rect 用行数，fill_span 要求 1，两者交替时必须重设。 */
 static uint32_t gpu_rows_now = 0xFFFFFFFFu;
 
 static void gpu_set_rows(uint32_t rows) {
@@ -48,8 +45,7 @@ void gpu_copy_rect(uint32_t dst, uint32_t src, uint32_t len, uint32_t rows, uint
     gpu_run2d(TCRV32_GPU_OP_COPY, dst, src, len, rows, stride, 0);
 }
 
-/* 一条水平 span（1 像素高）：扫描线填充用，命令里最贵的是参数写，所以只写必要的那几个。
- * 约定：调用前 ROWS 已经是 1（`gpu_span_begin()` 设一次即可）。 */
+/* 水平 span（1 像素高）：调用前 ROWS 需已为 1（gpu_span_begin 设一次）。 */
 void gpu_span_begin(void) { gpu_wait(); gpu_set_rows(1); }
 
 void gpu_fill_span(uint32_t dst, uint32_t span, uint32_t color) {

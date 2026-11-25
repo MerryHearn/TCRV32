@@ -1,14 +1,10 @@
-/* softfloat.c —— TCRV32 的软件浮点（double 核心 + float 包装 + 整数转换）
+/* softfloat.c — 软件浮点：double 核心、float 包装、整数转换
  *
- * 全部用整数位运算实现；函数体里**没有任何浮点运算**（否则自己调自己）。
- * 唯一例外：float 的 +−×÷ 直接借 double 做，依据是"二次舍入无害"定理
- *   （p_宽 ≥ 2·p_窄 + 2；53 ≥ 50 ✓），对 binary32 的 + − × ÷ 与原生逐位相同。
- * 舍入模式：就近-偶数（RNE），与 RISC-V 默认一致。
+ * 全部用整数位运算实现，函数体内不得出现浮点运算；舍入为就近-偶数（RNE）。
+ * float 的四则运算借 double 完成，对 binary32 逐位正确。
  *
- * 统一约定（贯穿全文件）：
- *   · 拆包后：value = m * 2^(e-52)，m 在 bit52 有隐含位（次正规则 m 更小）
- *   · round53 入口：value = m * 2^(e-55)，m 已归一化到 bit55
- *   · round53 出口：value = m * 2^(e-52)，m 为 53 位
+ * 约定：拆包后 value = m * 2^(e-52)，m 在 bit52 有隐含位；round53 入口为
+ * value = m * 2^(e-55)，出口回到 e-52。
  */
 
 #include <stdint.h>
@@ -45,11 +41,9 @@ static void d_unpack(double x, int *sign, uint64_t *m, int *e) {
     else         { *m = FFRAC(u) | (1ULL << 52); *e = ex - BIAS; }
 }
 
-/* 归一化到 56 位（bit55 为首 1）：value = m*2^(e-55)
- * 两个方向都要支持：
- *   · 太短（bit55 为 0）→ 左移，e 减
- *   · 太长（bit56 及以上有 1）→ 右移，移出的位并成 sticky（OR 到 bit0），e 加
- * 加法两个 53 位尾数相加会上到 bit56，必须走右移分支。 */
+/* 归一化到 bit55：太短则左移（e 减），太长则右移并把移出的位并入 sticky、e 加。
+ * 加法两个 53 位尾数相加会上到 bit56，必须走右移分支。
+ */
 static void norm55(uint64_t *m, int *e) {
     if (!*m) return;
     while (*m >> 56) {
@@ -400,7 +394,7 @@ float __truncdfsf2(double a) {
     return r.f;
 }
 
-/* ================= float 的算术（借 double，定理保证逐位正确） ================= */
+/* ================= float 的算术（借 double 实现） ================= */
 float __addsf3(float a, float b) { return __truncdfsf2(__adddf3(__extendsfdf2(a), __extendsfdf2(b))); }
 float __subsf3(float a, float b) { return __truncdfsf2(__subdf3(__extendsfdf2(a), __extendsfdf2(b))); }
 float __mulsf3(float a, float b) { return __truncdfsf2(__muldf3(__extendsfdf2(a), __extendsfdf2(b))); }

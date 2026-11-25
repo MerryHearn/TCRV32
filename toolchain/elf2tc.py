@@ -1,21 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""elf2tc.py —— TCRV32 镜像生成器（ELF → 可装入游戏内存的二进制）
+"""elf2tc.py — ELF → 可装入游戏内存的裸镜像
 
-为什么不用 llvm-objcopy -O binary：
-  它只按 VMA 平铺，**不检查**段是否落在合法内存区域、也不处理 IMEM/DMEM 分离，
-  更不会告诉你"哪一段越界了"。本工具把这四件事一次做完：
-    1. 校验 e_machine / e_flags（无 RVC、软浮点）
-    2. 按 PT_LOAD 的 **p_paddr**（物理/LMA）落位 —— 这样 .data 的"加载副本在 IMEM、
-       运行地址在 DMEM"才有意义
-    3. 段必须落在 regions 内，且可执行段只能落在 imem
-    4. 输出：原始 .bin（游戏"从文件加载"用，实测为二进制语义）+ 可选字级 hex 文本
-       + 符号表 + 段报告
+与 objcopy -O binary 的区别：按 p_paddr（物理地址）落位、校验段是否在合法区域内、
+可执行段只能落在 imem，并输出段报告；不处理 RVC。
 
-用法：
-  python tools/elf2tc.py build/app.elf -o build/app.bin
-  python tools/elf2tc.py build/app.elf -o build/app.bin --pad-to 0x100000 --hex build/app.hex
-  python tools/elf2tc.py build/app.elf -o build/app.bin --sym build/app.sym --report
+用法：python elf2tc.py app.elf -o app.bin [--pad 0x100000] [--hex app.hex] [--sym app.sym]
 """
 
 import argparse
@@ -128,7 +118,7 @@ def build(elf, base=0, pad_to=None, verbose=False):
         if paddr % 4:
             problems.append("段起始 0x%08X 未 4 字节对齐" % paddr)
 
-    # RVC 扫描只针对**可执行节**：.rodata 常常和 .text 在同一个 PT_LOAD 里（合法），
+    # RVC 扫描只针对可执行节：.rodata 常常和 .text 在同一个 PT_LOAD 里（合法），
     # 把它当指令扫描会误报。这一点与 ../tools/rvcheck.py 的口径一致。
     for sec in elf.secs:
         if sec["type"] != 1 or not (sec["flags"] & SHF_EXECINSTR) \

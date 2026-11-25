@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 """rv32emu.py —— TCRV32 的 L1 指令级模拟器（golden model）
 
-定位：**PC 上的"真机参照"**。游戏内 CPU 的一切行为都必须与它逐条一致；
+定位：PC 上的"真机参照"。游戏内 CPU 的一切行为都必须与它逐条一致；
 所有 C/汇编先在它上面跑通，再谈硬件。
 
-显式建模的平台约束（与 `../RV32IM-ISA规范.md` 一致）：
+显式建模的平台约束（与 ../RV32IM-ISA规范.md 一致）：
   * RV32IM 全量；无 C 扩展（指令必须 4 字节对齐，低 2 位必须是 0b11）
-  * 小端；非对齐访问**原生支持**；但"跨 8 字节行的 4 字节访问"→ 故障
+  * 小端；非对齐访问原生支持；但"跨 8 字节行的 4 字节访问"→ 故障
   * 16 MiB 物理 RAM（0x0000_0000 ~ 0x00FF_FFFF），按区域划分权限
   * MMIO 在 RAM 之外（0x4000_0000 起），越界/未映射 → 故障（不是静默读 0）
-  * `EBREAK` = 停机；`ECALL` = 系统调用（a7 功能号）；`FENCE/FENCE.I` = NOP
+  * EBREAK = 停机；ECALL = 系统调用（a7 功能号）；FENCE/FENCE.I = NOP
   * 非法编码 = 故障（不做"当 NOP 执行"）
 
 用法：
@@ -223,7 +223,7 @@ class Emu:
             if k == 1:
                 return 1 if self.kbd_q else 0
             if k == 2:
-                # EVENT：**同一拍取走并弹出**（游戏自己的 keyboard 指令就是这个语义）
+                # EVENT：同一拍取走并弹出（游戏自己的 keyboard 指令就是这个语义）
                 v = self.kbd_peek()
                 if self.kbd_q:
                     self.kbd_q.pop(0)
@@ -642,7 +642,7 @@ class Emu:
 def parse_key_script(text):
     """把 "1000:01,1100:01:0" 解析成 [(tick, down, code), ...]
 
-    每项 = `tick:键码[:按下位]`；键码按十六进制；按下位缺省 1（按下），0 = 弹起。
+    每项 = tick:键码[:按下位]；键码按十六进制；按下位缺省 1（按下），0 = 弹起。
     为空则返回 []。给测试与 L1 对拍用：tick 就是已执行指令数。
     """
     out = []

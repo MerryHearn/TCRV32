@@ -1,13 +1,8 @@
-/* TCRV32 v0.1 最小运行时（freestanding）
+/* support.c — 最小运行时：系统调用封装 + compiler-rt 缺口
  *
- * 两件事：
- *   1. 系统调用封装（ECALL，a7=功能号）与最简输出；
- *   2. 补齐 zig cc / clang 在 freestanding riscv32 下**不提供**的 compiler-rt 辅助函数：
- *      __muldi3 / __divdi3 / __udivdi3 / __moddi3 / __umoddi3 / 移位三件套。
- *      （实测 `python -m ziglang cc --target=riscv32-freestanding-none ... -nostdlib`
- *        会报 __divdi3/__addsf3/__muldf3 未定义 —— 见 ../路线图.md §1.2）
- *
- * 浮点**故意不实现**：平台无 FPU，项目也不用浮点（GPU 走 Q16.16）。
+ * 1. 系统调用：ecall，a7=2 输出字符，a7=60 退出；
+ * 2. freestanding 下编译器不提供的 64 位乘除与移位辅助函数。
+ * 浮点不在这里，见 softfloat.c。
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -23,8 +18,7 @@ static inline long sys_call(long n, long a0, long a1, long a2)
     return t0;
 }
 
-/* ABI：a7=2 = 输出一个字符（硬件唯一实现的那个）；a7=60 = 退出。
- * putstr 在软件里循环 putch —— 硬件不需要认识字符串指针。 */
+/* a7=2 输出一个字符，a7=60 退出；putstr 在软件里循环 putch。 */
 void putch(char c)            { sys_call(2, (unsigned char)c, 0, 0); }
 void putstr(const char *s)    { while (*s) putch(*s++); }
 long getch(void)              { return sys_call(3, 0, 0, 0); }
@@ -52,9 +46,7 @@ void putdec_s(long v)
     else putdec((unsigned long)v);
 }
 
-/* 退出（a7=60）。头文件里早就声明了它，但一直没有实现 —— 谁用谁链接失败。
- * 硬件侧 `SCALL` 的 `a7==60` 会拉 halt，所以这里只需要把调用号发出去；
- * 后面的死循环是给"万一硬件没停"兜底（且让编译器放心 noreturn）。 */
+/* 退出：a7=60 触发硬件停机；死循环只是给 noreturn 兜底。 */
 void sys_exit(int code)
 {
     sys_call(60, code, 0, 0);
@@ -94,7 +86,7 @@ int memcmp(const void *a, const void *b, size_t n)
 size_t strlen_(const char *s) { size_t n = 0; while (s[n]) n++; return n; }
 
 /* ---------------- 64 位辅助（compiler-rt 缺口） ---------------- */
-/* 说明：乘法用 32x32→64 的四段拆解，除法用 64 步移位减，都只依赖 RV32IM。 */
+/* 乘法：32×32→64 四段拆解；除法：64 步移位减。只依赖 RV32IM。 */
 
 uint64_t __muldi3(uint64_t a, uint64_t b)
 {
